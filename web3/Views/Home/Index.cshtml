@@ -1,0 +1,86 @@
+﻿@model ecom.ViewModels.HomeViewModel
+@{
+    ViewData["Title"] = "Accueil";
+}
+
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-3">Bienvenue chez E-Shop</h1>
+                <p class="lead mb-4">Découvrez notre collection exclusive de produits de qualité.</p>
+                <a asp-controller="Home" asp-action="Products" class="btn btn-light btn-lg">
+                    <i class="bi bi-shop me-2"></i>Voir tous les produits
+                </a>
+            </div>
+            <div class="col-lg-6">
+                <img src="https://via.placeholder.com/600x400" class="img-fluid rounded shadow" alt="E-commerce" />
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories Section -->
+<section class="categories-section mb-5">
+    <div class="container">
+        <h2 class="text-center mb-4">Catégories populaires</h2>
+        <div class="row g-4">
+            @foreach (var category in Model.Categories)
+            {
+                <div class="col-md-4 col-lg-2">
+                    <a asp-controller="Home" asp-action="Products" asp-route-categoryId="@category.Id"
+                       class="text-decoration-none text-dark">
+                        <div class="card category-card text-center border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <i class="bi bi-tag fs-1 text-primary"></i>
+                                </div>
+                                <h6 class="card-title">@category.Name</h6>
+                                <small class="text-muted">@category.ProductCount produits</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products -->
+<section class="featured-products mb-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Produits en vedette</h2>
+            <a asp-controller="Home" asp-action="Products" class="btn btn-outline-primary">
+                Voir plus <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="row g-4">
+            @foreach (var product in Model.FeaturedProducts)
+            {
+                <div class="col-md-3">
+                    <partial name="_ProductCard" model="product" />
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- Banner -->
+<div class="container mb-5">
+    <div class="alert alert-info text-center py-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-2">@Model.BannerMessage</h4>
+                <p class="mb-0">Commandez maintenant et profitez de nos offres spéciales!</p>
+            </div>
+            <div class="col-md-4">
+                <a asp-controller="Home" asp-action="Products" class="btn btn-primary btn-lg">
+                    <i class="bi bi-lightning-charge me-2"></i>Acheter maintenant
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

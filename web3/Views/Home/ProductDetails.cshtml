@@ -1,0 +1,178 @@
+﻿@model ecom.ViewModels.ProductDetailViewModel
+@{
+    ViewData["Title"] = Model.Product.Name;
+}
+
+<div class="container py-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Accueil</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Products">Produits</a></li>
+            <li class="breadcrumb-item">
+                <a asp-controller="Home" asp-action="Products"
+                   asp-route-categoryId="@Model.Product.CategoryId">@Model.Product.Category?.Name</a>
+            </li>
+            <li class="breadcrumb-item active">@Model.Product.Name</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Product Images -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(Model.Product.ImageUrl))
+                    {
+                        <img src="@Model.Product.ImageUrl" class="img-fluid rounded"
+                             alt="@Model.Product.Name" id="mainImage" />
+                    }
+                    else
+                    {
+                        <div class="bg-light d-flex align-items-center justify-content-center rounded"
+                             style="height: 400px;">
+                            <i class="bi bi-image text-muted display-4"></i>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <span class="badge bg-primary">@Model.Product.Category?.Name</span>
+                        @if (Model.Product.LowStock)
+                        {
+                            <span class="badge bg-warning ms-2">Stock faible</span>
+                        }
+                        @if (!Model.Product.InStock)
+                        {
+                            <span class="badge bg-danger ms-2">Rupture de stock</span>
+                        }
+                    </div>
+
+                    <h1 class="h2 mb-3">@Model.Product.Name</h1>
+
+                    @if (!string.IsNullOrEmpty(Model.Product.Brand))
+                    {
+                        <p class="text-muted mb-3">
+                            <i class="bi bi-tag me-1"></i>Marque: @Model.Product.Brand
+                        </p>
+                    }
+
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center">
+                            <span class="display-5 fw-bold text-primary me-3">
+                                @Model.Product.Price.ToString("C2")
+                            </span>
+                            <small class="text-muted">TVA incluse</small>
+                        </div>
+                        <small class="text-muted">Prix HT: @((Model.Product.Price / 1.2m).ToString("C2"))</small>
+                    </div>
+
+                    <p class="mb-4">@Model.Product.Description</p>
+
+                    <div class="mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Référence:</strong></p>
+                                <p class="text-muted">@Model.Product.SKU</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Disponibilité:</strong></p>
+                                @if (Model.Product.InStock)
+                                {
+                                    <p class="text-success">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        @Model.Product.StockQuantity unités en stock
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="text-danger">
+                                        <i class="bi bi-x-circle me-1"></i>
+                                        Rupture de stock
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (Model.Product.InStock)
+                    {
+                        <form asp-controller="Cart" asp-action="Add" method="post" class="row g-3 align-items-center">
+                            <input type="hidden" name="productId" value="@Model.Product.Id" />
+
+                            <div class="col-auto">
+                                <div class="input-group" style="width: 120px;">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="decreaseQuantity()">
+                                        -
+                                    </button>
+                                    <input type="number" class="form-control text-center"
+                                           name="quantity" id="quantity" value="1" min="1"
+                                           max="@Model.Product.StockQuantity" />
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="increaseQuantity()">
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-cart-plus me-2"></i>Ajouter au panier
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <button class="btn btn-secondary btn-lg" disabled>
+                            <i class="bi bi-cart-x me-2"></i>Produit indisponible
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Products -->
+    @if (Model.RelatedProducts.Any())
+    {
+        <div class="mt-5">
+            <h3 class="mb-4">Produits similaires</h3>
+            <div class="row g-4">
+                @foreach (var product in Model.RelatedProducts)
+                {
+                    <div class="col-md-3">
+                        <partial name="_ProductCard" model="product" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function increaseQuantity() {
+            const input = document.getElementById('quantity');
+            const max = parseInt(input.max);
+            const current = parseInt(input.value);
+            if (current < max) {
+                input.value = current + 1;
+            }
+        }
+
+        function decreaseQuantity() {
+            const input = document.getElementById('quantity');
+            const current = parseInt(input.value);
+            if (current > 1) {
+                input.value = current - 1;
+            }
+        }
+    </script>
+}

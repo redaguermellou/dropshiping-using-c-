@@ -1,0 +1,109 @@
+﻿<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <!-- Brand with Logo -->
+        <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>ShopNex</span>
+        </a>
+
+        <!-- Mobile Toggle -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navigation Content -->
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <!-- Main Navigation -->
+            <ul class="navbar-nav mx-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" asp-controller="Home" asp-action="Index">
+                        <i class="bi bi-house me-1"></i>Home
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                        <i class="bi bi-grid me-1"></i>Shop
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" asp-controller="Home" asp-action="Products">All Products</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-star-fill text-warning me-2"></i>Featured</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-fire text-danger me-2"></i>Trending</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-arrow-up-right text-success me-2"></i>New Arrivals</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-controller="Home" asp-action="About">
+                        <i class="bi bi-info-circle me-1"></i>About
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-controller="Home" asp-action="Contact">
+                        <i class="bi bi-chat-left-text me-1"></i>Contact
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Search Bar -->
+            <div class="search-container me-3">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="search-input form-control" placeholder="Search products...">
+                <div class="search-results dropdown-menu w-100" style="display: none;">
+                    <!-- Search results will appear here -->
+                </div>
+            </div>
+
+            <!-- User Actions -->
+            <div class="navbar-nav align-items-center">
+                <!-- Wishlist -->
+                <a class="nav-link me-3" href="#" data-wishlist>
+                    <i class="bi bi-heart"></i>
+                </a>
+
+                <!-- Cart with Badge -->
+                <a class="nav-link me-3 position-relative" asp-controller="Cart" asp-action="Index">
+                    <i class="bi bi-cart3 fs-5"></i>
+                    <span class="cart-badge">0</span>
+                </a>
+
+                <!-- User Dropdown -->
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown">
+                            <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                <span class="text-white">@User.Identity.Name.Substring(0, 1)</span>
+                            </div>
+                            @User.Identity.Name
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="bi bi-person me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" asp-controller="Order" asp-action="History"><i class="bi bi-receipt me-2"></i>Orders</a></li>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" asp-controller="Product" asp-action="Index"><i class="bi bi-gear me-2"></i>Admin Panel</a></li>
+                            }
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form asp-controller="Account" asp-action="Logout" method="post">
+                                    <button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-primary" asp-controller="Account" asp-action="Login">Login</a>
+                        <a class="btn btn-primary" asp-controller="Account" asp-action="Register">Sign Up</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Mobile Menu Overlay -->
+<div class="mobile-menu-overlay"></div>

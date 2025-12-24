@@ -1,0 +1,57 @@
+﻿@model ecom.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Connexion";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">Connexion</h2>
+
+                    <form asp-controller="Account" asp-action="Login" method="post"
+                          asp-route-returnUrl="@ViewData["ReturnUrl"]">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="EmailOrUsername" class="form-label">Email ou nom d'utilisateur *</label>
+                            <input asp-for="EmailOrUsername" class="form-control"
+                                   placeholder="email@exemple.com ou nom d'utilisateur" />
+                            <span asp-validation-for="EmailOrUsername" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Password" class="form-label">Mot de passe *</label>
+                            <input asp-for="Password" type="password" class="form-control" />
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input asp-for="RememberMe" class="form-check-input" />
+                            <label asp-for="RememberMe" class="form-check-label">Se souvenir de moi</label>
+                        </div>
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+                            </button>
+                        </div>
+
+                        <div class="text-center">
+                            <p class="mb-0">
+                                Pas encore de compte?
+                                <a asp-controller="Account" asp-action="Register"
+                                   class="text-decoration-none">S'inscrire</a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
