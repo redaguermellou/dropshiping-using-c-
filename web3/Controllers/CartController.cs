@@ -26,7 +26,21 @@ namespace ecom.Controllers
                 var userId = GetUserId();
                 var cart = await GetOrCreateCartAsync(userId);
 
-                var totalAmount = cart.Items?.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
+                // Ensure all cart items have product data loaded
+                if (cart != null && cart.Items?.Any() == true)
+                {
+                    foreach (var item in cart.Items)
+                    {
+                        if (item.Product == null)
+                        {
+                            await _context.Entry(item)
+                                .Reference(i => i.Product)
+                                .LoadAsync();
+                        }
+                    }
+                }
+
+                var totalAmount = cart?.Items?.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
                 var totalAmountWithVat = totalAmount * 1.2m;
 
                 var viewModel = new CartViewModel
@@ -51,6 +65,12 @@ namespace ecom.Controllers
         {
             try
             {
+                if (quantity < 1)
+                {
+                    TempData["ErrorMessage"] = "La quantité doit être au moins 1.";
+                    return RedirectToAction("Products", "Home");
+                }
+
                 var product = await _context.Products
                     .FirstOrDefaultAsync(p => p.Id == productId && p.IsActive);
 
@@ -74,7 +94,16 @@ namespace ecom.Controllers
 
                 if (existingItem != null)
                 {
-                    existingItem.Quantity += quantity;
+                    var newTotalQuantity = existingItem.Quantity + quantity;
+
+                    // Check stock with new total quantity
+                    if (newTotalQuantity > product.StockQuantity)
+                    {
+                        TempData["ErrorMessage"] = "Stock insuffisant pour la quantité demandée.";
+                        return RedirectToAction("ProductDetails", "Home", new { id = productId });
+                    }
+
+                    existingItem.Quantity = newTotalQuantity;
                     existingItem.UnitPrice = product.Price;
                 }
                 else
@@ -91,6 +120,7 @@ namespace ecom.Controllers
                     _context.CartItems.Add(cartItem);
                 }
 
+                cart.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Produit ajouté au panier avec succès!";
@@ -126,13 +156,21 @@ namespace ecom.Controllers
                 }
 
                 // Vérifier le stock
-                if (quantity > cartItem.Product.StockQuantity)
+                if (quantity > cartItem.Product?.StockQuantity)
                 {
                     TempData["ErrorMessage"] = "Stock insuffisant.";
                     return RedirectToAction("Index");
                 }
 
                 cartItem.Quantity = quantity;
+
+                // Update cart timestamp
+                var cart = await _context.Carts.FindAsync(cartItem.CartId);
+                if (cart != null)
+                {
+                    cart.UpdatedAt = DateTime.UtcNow;
+                }
+
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Quantité mise à jour.";
@@ -151,11 +189,20 @@ namespace ecom.Controllers
         {
             try
             {
-                var cartItem = await _context.CartItems.FindAsync(cartItemId);
+                var cartItem = await _context.CartItems
+                    .Include(ci => ci.Cart)
+                    .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
 
                 if (cartItem != null)
                 {
                     _context.CartItems.Remove(cartItem);
+
+                    // Update cart timestamp
+                    if (cartItem.Cart != null)
+                    {
+                        cartItem.Cart.UpdatedAt = DateTime.UtcNow;
+                    }
+
                     await _context.SaveChangesAsync();
 
                     TempData["SuccessMessage"] = "Produit retiré du panier.";
@@ -186,6 +233,7 @@ namespace ecom.Controllers
                 if (cart != null && cart.Items?.Any() == true)
                 {
                     _context.CartItems.RemoveRange(cart.Items);
+                    cart.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
                     TempData["SuccessMessage"] = "Panier vidé avec succès.";
@@ -226,29 +274,47 @@ namespace ecom.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Vérifier la disponibilité des produits
+                // Ensure all products are loaded
                 foreach (var item in cart.Items)
                 {
-                    await _context.Entry(item)
-                        .Reference(i => i.Product)
-                        .LoadAsync();
+                    if (item.Product == null)
+                    {
+                        await _context.Entry(item)
+                            .Reference(i => i.Product)
+                            .LoadAsync();
+                    }
+                }
 
+                // Vérifier la disponibilité des produits
+                var unavailableItems = new List<string>();
+                foreach (var item in cart.Items)
+                {
                     if (item.Product == null || item.Quantity > item.Product.StockQuantity)
                     {
-                        TempData["ErrorMessage"] = $"Le produit {item.Product?.Name} n'est plus disponible en quantité suffisante.";
-                        return RedirectToAction("Index");
+                        unavailableItems.Add(item.Product?.Name ?? $"Produit ID: {item.ProductId}");
                     }
+                }
+
+                if (unavailableItems.Any())
+                {
+                    TempData["ErrorMessage"] = $"Les produits suivants ne sont plus disponibles en quantité suffisante: {string.Join(", ", unavailableItems)}";
+                    return RedirectToAction("Index");
                 }
 
                 // Calculer les totaux
                 var totalAmount = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
                 var totalAmountWithVat = totalAmount * 1.2m;
 
+                // Get user for pre-filling checkout form
+                var user = await _context.Users.FindAsync(userId);
+
                 var viewModel = new CheckoutViewModel
                 {
                     Cart = cart,
                     TotalAmount = totalAmount,
-                    TotalAmountWithVat = totalAmountWithVat
+                    TotalAmountWithVat = totalAmountWithVat,
+                    Email = user?.Email ?? string.Empty,
+                   
                 };
 
                 return View(viewModel);
@@ -256,7 +322,8 @@ namespace ecom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading checkout page");
-                return View("Error");
+                TempData["ErrorMessage"] = "Une erreur s'est produite lors du chargement de la page de paiement.";
+                return RedirectToAction("Index");
             }
         }
 
@@ -274,6 +341,11 @@ namespace ecom.Controllers
                     if (int.TryParse(userIdClaim, out int userId))
                     {
                         model.Cart = await GetCartAsync(userId.ToString());
+                        if (model.Cart != null && model.Cart.Items?.Any() == true)
+                        {
+                            model.TotalAmount = model.Cart.Items.Sum(i => i.UnitPrice * i.Quantity);
+                            model.TotalAmountWithVat = model.TotalAmount * 1.2m;
+                        }
                     }
                     return View(model);
                 }
@@ -292,70 +364,96 @@ namespace ecom.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Vérifier à nouveau la disponibilité
+                // Ensure all products are loaded
                 foreach (var item in cart.Items)
                 {
-                    await _context.Entry(item)
-                        .Reference(i => i.Product)
-                        .LoadAsync();
-
-                    if (item.Quantity > item.Product.StockQuantity)
+                    if (item.Product == null)
                     {
-                        TempData["ErrorMessage"] = $"Le produit {item.Product.Name} n'est plus disponible en quantité suffisante.";
-                        return RedirectToAction("Index");
+                        await _context.Entry(item)
+                            .Reference(i => i.Product)
+                            .LoadAsync();
                     }
                 }
 
-                // Créer la commande
-                var order = new Order
+                // Vérifier à nouveau la disponibilité
+                var unavailableItems = new List<string>();
+                foreach (var item in cart.Items)
                 {
-                    UserId = parsedUserId,
-                    OrderNumber = GenerateOrderNumber(),
-                   
-                    ShippingAddress = model.ShippingAddress,
-                   
-                    PaymentMethod = model.PaymentMethod,
-                    Notes = model.Notes,
-                    Status = "Pending",
-                    PaymentStatus = "Pending",
-                    TotalAmount = model.TotalAmount,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _context.Orders.Add(order);
-                await _context.SaveChangesAsync(); // Sauvegarder pour obtenir l'ID
-
-                // Ajouter les détails de la commande
-                foreach (var cartItem in cart.Items)
-                {
-                    var orderDetail = new OrderDetail
+                    if (item.Product == null || item.Quantity > item.Product.StockQuantity)
                     {
-                        OrderId = order.Id,
-                        ProductId = cartItem.ProductId,
-                        Quantity = cartItem.Quantity,
-                        UnitPrice = cartItem.UnitPrice,
+                        unavailableItems.Add(item.Product?.Name ?? $"Produit ID: {item.ProductId}");
+                    }
+                }
+
+                if (unavailableItems.Any())
+                {
+                    TempData["ErrorMessage"] = $"Les produits suivants ne sont plus disponibles en quantité suffisante: {string.Join(", ", unavailableItems)}";
+                    return RedirectToAction("Index");
+                }
+
+                // Use transaction for data consistency
+                using var transaction = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    // Créer la commande
+                    var order = new Order
+                    {
+                        UserId = parsedUserId,
+                        OrderNumber = GenerateOrderNumber(),
+                        TotalAmount = model.TotalAmount,
+                        Status = "Pending",
+                        ShippingAddress = model.ShippingAddress,
+                        BillingAddress = model.ShippingAddress, // Same as shipping for now
+                        PaymentMethod = model.PaymentMethod,
+                        PaymentStatus = "Pending",
+                        Notes = model.Notes,
                         CreatedAt = DateTime.UtcNow
                     };
 
-                    _context.OrderDetails.Add(orderDetail);
+                    _context.Orders.Add(order);
+                    await _context.SaveChangesAsync(); // Sauvegarder pour obtenir l'ID
 
-                    // Mettre à jour le stock
-                    var product = await _context.Products.FindAsync(cartItem.ProductId);
-                    if (product != null)
+                    // Ajouter les détails de la commande
+                    foreach (var cartItem in cart.Items)
                     {
-                        product.StockQuantity -= cartItem.Quantity;
-                        product.UpdatedAt = DateTime.UtcNow;
-                        _context.Products.Update(product);
+                        var orderDetail = new OrderDetail
+                        {
+                            OrderId = order.Id,
+                            ProductId = cartItem.ProductId,
+                            Quantity = cartItem.Quantity,
+                            UnitPrice = cartItem.UnitPrice,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _context.OrderDetails.Add(orderDetail);
+
+                        // Mettre à jour le stock
+                        var product = await _context.Products.FindAsync(cartItem.ProductId);
+                        if (product != null)
+                        {
+                            product.StockQuantity -= cartItem.Quantity;
+                            product.UpdatedAt = DateTime.UtcNow;
+                        }
                     }
+
+                    // Vider le panier
+                    _context.CartItems.RemoveRange(cart.Items);
+
+                    // Update cart timestamp
+                    cart.UpdatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    TempData["SuccessMessage"] = "Commande créée avec succès!";
+                    return RedirectToAction("Confirmation", "Order", new { id = order.Id });
                 }
-
-                // Vider le panier
-                _context.CartItems.RemoveRange(cart.Items);
-
-                await _context.SaveChangesAsync();
-
-                TempData["SuccessMessage"] = "Commande créée avec succès!";
-                return RedirectToAction("Confirmation", "Order", new { id = order.Id });
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
@@ -364,7 +462,15 @@ namespace ecom.Controllers
 
                 // Recharger les données
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                model.Cart = await GetCartAsync(userId);
+                if (int.TryParse(userId, out int parsedUserId))
+                {
+                    model.Cart = await GetCartAsync(userId);
+                    if (model.Cart != null && model.Cart.Items?.Any() == true)
+                    {
+                        model.TotalAmount = model.Cart.Items.Sum(i => i.UnitPrice * i.Quantity);
+                        model.TotalAmountWithVat = model.TotalAmount * 1.2m;
+                    }
+                }
                 return View(model);
             }
         }
@@ -372,48 +478,52 @@ namespace ecom.Controllers
         // Méthodes d'aide privées
         private async Task<Cart> GetOrCreateCartAsync(string userId)
         {
-            if (!int.TryParse(userId, out int parsedUserId))
+            Cart cart = null;
+
+            if (int.TryParse(userId, out int parsedUserId))
             {
-                // Pour les utilisateurs anonymes, utiliser le SessionId
-                var cart = await _context.Carts
+                // Pour les utilisateurs authentifiés
+                cart = await _context.Carts
+                    .Include(c => c.Items)
+                    .ThenInclude(i => i.Product)
+                    .FirstOrDefaultAsync(c => c.UserId == parsedUserId);
+            }
+            else
+            {
+                // Pour les utilisateurs anonymes
+                cart = await _context.Carts
                     .Include(c => c.Items)
                     .ThenInclude(i => i.Product)
                     .FirstOrDefaultAsync(c => c.SessionId == userId);
-
-                if (cart == null)
-                {
-                    cart = new Cart
-                    {
-                        SessionId = userId,
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    _context.Carts.Add(cart);
-                    await _context.SaveChangesAsync();
-                }
-
-                return cart;
             }
 
-            // Pour les utilisateurs authentifiés
-            var userCart = await _context.Carts
-                .Include(c => c.Items)
-                .ThenInclude(i => i.Product)
-                .FirstOrDefaultAsync(c => c.UserId == parsedUserId);
-
-            if (userCart == null)
+            if (cart == null)
             {
-                userCart = new Cart
+                cart = new Cart
                 {
-                    UserId = parsedUserId,
                     CreatedAt = DateTime.UtcNow
                 };
 
-                _context.Carts.Add(userCart);
+                if (int.TryParse(userId, out int uid))
+                {
+                    cart.UserId = uid;
+                }
+                else
+                {
+                    cart.SessionId = userId;
+                }
+
+                _context.Carts.Add(cart);
                 await _context.SaveChangesAsync();
+
+                // Reload with includes
+                cart = await _context.Carts
+                    .Include(c => c.Items)
+                    .ThenInclude(i => i.Product)
+                    .FirstOrDefaultAsync(c => c.Id == cart.Id);
             }
 
-            return userCart;
+            return cart ?? new Cart();
         }
 
         private async Task<Cart> GetCartAsync(string userId)
@@ -457,6 +567,136 @@ namespace ecom.Controllers
         private string GenerateOrderNumber()
         {
             return $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()}";
+        }
+
+        // AJAX methods for better UX
+        [HttpGet]
+        public async Task<JsonResult> GetCartSummary()
+        {
+            try
+            {
+                var userId = GetUserId();
+                var cart = await GetCartAsync(userId);
+
+                var itemCount = cart?.Items?.Sum(i => i.Quantity) ?? 0;
+                var totalAmount = cart?.Items?.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
+
+                return Json(new
+                {
+                    success = true,
+                    itemCount,
+                    totalAmount = totalAmount.ToString("C2"),
+                    totalItems = itemCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting cart summary");
+                return Json(new { success = false, message = "Erreur lors du chargement du panier." });
+            }
+        }
+
+        [HttpPost]
+        public async Task<JsonResult> UpdateQuantityAjax(int cartItemId, int quantity)
+        {
+            try
+            {
+                if (quantity < 1)
+                {
+                    return Json(new { success = false, message = "La quantité doit être au moins 1." });
+                }
+
+                var cartItem = await _context.CartItems
+                    .Include(ci => ci.Product)
+                    .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
+
+                if (cartItem == null)
+                {
+                    return Json(new { success = false, message = "Article introuvable." });
+                }
+
+                // Vérifier le stock
+                if (quantity > cartItem.Product?.StockQuantity)
+                {
+                    return Json(new { success = false, message = "Stock insuffisant." });
+                }
+
+                cartItem.Quantity = quantity;
+
+                // Update cart timestamp
+                var cart = await _context.Carts.FindAsync(cartItem.CartId);
+                if (cart != null)
+                {
+                    cart.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Recalculate totals
+                var updatedCart = await GetCartAsync(GetUserId());
+                var itemCount = updatedCart?.Items?.Sum(i => i.Quantity) ?? 0;
+                var totalAmount = updatedCart?.Items?.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
+                var subtotal = cartItem.UnitPrice * quantity;
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Quantité mise à jour.",
+                    subtotal = subtotal.ToString("C2"),
+                    totalAmount = totalAmount.ToString("C2"),
+                    totalAmountWithVat = (totalAmount * 1.2m).ToString("C2"),
+                    itemCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating cart item {cartItemId}");
+                return Json(new { success = false, message = "Erreur lors de la mise à jour." });
+            }
+        }
+
+        [HttpPost]
+        public async Task<JsonResult> RemoveItemAjax(int cartItemId)
+        {
+            try
+            {
+                var cartItem = await _context.CartItems
+                    .Include(ci => ci.Cart)
+                    .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
+
+                if (cartItem != null)
+                {
+                    _context.CartItems.Remove(cartItem);
+
+                    // Update cart timestamp
+                    if (cartItem.Cart != null)
+                    {
+                        cartItem.Cart.UpdatedAt = DateTime.UtcNow;
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
+                // Recalculate totals
+                var cart = await GetCartAsync(GetUserId());
+                var itemCount = cart?.Items?.Sum(i => i.Quantity) ?? 0;
+                var totalAmount = cart?.Items?.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Produit retiré.",
+                    totalAmount = totalAmount.ToString("C2"),
+                    totalAmountWithVat = (totalAmount * 1.2m).ToString("C2"),
+                    itemCount,
+                    isEmpty = itemCount == 0
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error removing cart item {cartItemId}");
+                return Json(new { success = false, message = "Erreur lors de la suppression." });
+            }
         }
     }
 }
