@@ -1,8 +1,10 @@
 ﻿using ecom.Data;
+using ecom.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<IAliExpressApiService, DummyAliExpressService>();
 
 // Ajouter les services au conteneur
 builder.Services.AddControllersWithViews();
@@ -71,4 +73,6 @@ app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
+// In Program.cs
+// In Program.cs
 app.Run();
