@@ -1,0 +1,454 @@
+﻿@model dynamic
+@{
+    ViewData["Title"] = "Analytics";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <!-- Period Selector -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Période: <span id="currentPeriod">7 derniers jours</span></h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadData('today')">Aujourd'hui</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadData('7days')">7 jours</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadData('30days')">30 jours</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadData('90days')">90 jours</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">Revenu</h6>
+                            <h3 id="revenue">€0.00</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-currency-euro text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span id="revenueChange" class="badge bg-success">0%</span>
+                        <small class="text-muted ms-1">vs période précédente</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">Commandes</h6>
+                            <h3 id="orders">0</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-cart-check text-success" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span id="ordersChange" class="badge bg-success">0%</span>
+                        <small class="text-muted ms-1">vs période précédente</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">Clients</h6>
+                            <h3 id="customers">0</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people text-info" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span id="customersChange" class="badge bg-success">0%</span>
+                        <small class="text-muted ms-1">vs période précédente</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">Panier moyen</h6>
+                            <h3 id="avgCart">€0.00</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-basket text-warning" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span id="avgCartChange" class="badge bg-success">0%</span>
+                        <small class="text-muted ms-1">vs période précédente</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row mb-4">
+        <!-- Revenue Chart -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Revenu quotidien</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Produits les plus vendus</h5>
+                </div>
+                <div class="card-body">
+                    <div id="topProducts" class="list-group list-group-flush">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Orders Chart -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Commandes par statut</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="ordersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traffic Sources -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Sources du trafic</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Chart instances
+        let revenueChart, ordersChart, trafficChart;
+        let currentPeriod = '7days';
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData(currentPeriod);
+        });
+
+        // Function to load analytics data
+        async function loadData(period) {
+            currentPeriod = period;
+            updatePeriodLabel(period);
+
+            // Show loading state
+            showLoading(true);
+
+            try {
+                // Fetch analytics data
+                const response = await fetch(`/admin/api/analytics?period=${period}`);
+                const data = await response.json();
+
+                // Update metrics
+                updateMetrics(data.metrics);
+
+                // Update charts
+                updateRevenueChart(data.revenueData);
+                updateOrdersChart(data.ordersData);
+                updateTrafficChart(data.trafficData);
+                updateTopProducts(data.topProducts);
+
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                showError('Erreur lors du chargement des données');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Update period label
+        function updatePeriodLabel(period) {
+            const labels = {
+                'today': 'Aujourd\'hui',
+                '7days': '7 derniers jours',
+                '30days': '30 derniers jours',
+                '90days': '90 derniers jours'
+            };
+            document.getElementById('currentPeriod').textContent = labels[period] || period;
+        }
+
+        // Update metrics display
+        function updateMetrics(metrics) {
+            document.getElementById('revenue').textContent = '€' + metrics.revenue.toFixed(2);
+            document.getElementById('orders').textContent = metrics.orders;
+            document.getElementById('customers').textContent = metrics.customers;
+            document.getElementById('avgCart').textContent = '€' + metrics.avgCart.toFixed(2);
+
+            // Update change indicators
+            updateChangeIndicator('revenueChange', metrics.revenueChange);
+            updateChangeIndicator('ordersChange', metrics.ordersChange);
+            updateChangeIndicator('customersChange', metrics.customersChange);
+            updateChangeIndicator('avgCartChange', metrics.avgCartChange);
+        }
+
+        // Update change indicator with color
+        function updateChangeIndicator(elementId, change) {
+            const element = document.getElementById(elementId);
+            element.textContent = (change > 0 ? '+' : '') + change.toFixed(1) + '%';
+            element.className = 'badge ' + (change >= 0 ? 'bg-success' : 'bg-danger');
+        }
+
+        // Initialize/Update Revenue Chart
+        function updateRevenueChart(data) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+
+            if (revenueChart) {
+                revenueChart.destroy();
+            }
+
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Revenu (€)',
+                        data: data.values,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize/Update Orders Chart
+        function updateOrdersChart(data) {
+            const ctx = document.getElementById('ordersChart').getContext('2d');
+
+            if (ordersChart) {
+                ordersChart.destroy();
+            }
+
+            ordersChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            '#198754', // Success (green)
+                            '#0dcaf0', // Info (blue)
+                            '#ffc107', // Warning (yellow)
+                            '#dc3545', // Danger (red)
+                            '#6c757d'  // Secondary (gray)
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize/Update Traffic Chart
+        function updateTrafficChart(data) {
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+
+            if (trafficChart) {
+                trafficChart.destroy();
+            }
+
+            trafficChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Visites',
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update top products list
+        function updateTopProducts(products) {
+            const container = document.getElementById('topProducts');
+            container.innerHTML = '';
+
+            products.forEach((product, index) => {
+                const item = document.createElement('a');
+                item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                item.href = `/admin/products/details/${product.id}`;
+
+                item.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-primary me-2">${index + 1}</span>
+                        <div>
+                            <div class="fw-bold">${product.name}</div>
+                            <small class="text-muted">${product.sales} ventes</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-success rounded-pill">€${product.revenue.toFixed(2)}</span>
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        // Loading state
+        function showLoading(isLoading) {
+            const loadingOverlay = document.getElementById('loadingOverlay') || createLoadingOverlay();
+            loadingOverlay.style.display = isLoading ? 'flex' : 'none';
+        }
+
+        function createLoadingOverlay() {
+            const overlay = document.createElement('div');
+            overlay.id = 'loadingOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255,255,255,0.8);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+            `;
+            overlay.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+                    <p class="mt-2">Chargement des données...</p>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            return overlay;
+        }
+
+        // Error display
+        function showError(message) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+            alert.style.zIndex = '10000';
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Auto-refresh every 5 minutes
+        setInterval(() => {
+            loadData(currentPeriod);
+        }, 300000); // 5 minutes
+    </script>
+}

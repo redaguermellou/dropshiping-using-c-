@@ -40,16 +40,284 @@ namespace ecom.Controllers
             return View();
         }
 
+        // ========== PRODUCT CRUD OPERATIONS ==========
+
+        // GET: admin/products
         [HttpGet("products")]
-        public async Task<IActionResult> Products()
+        public async Task<IActionResult> Products(string search = "", string sortBy = "newest", int categoryId = 0)
         {
-            var products = await _context.Products
+            var query = _context.Products
                 .Include(p => p.Category)
-                .Where(p => p.IsActive)
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
+                .AsQueryable();
+
+            // Search filter
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(p =>
+                    p.Name.Contains(search) ||
+                    p.SKU.Contains(search) ||
+                    p.Description.Contains(search));
+            }
+
+            // Category filter
+            if (categoryId > 0)
+            {
+                query = query.Where(p => p.CategoryId == categoryId);
+            }
+
+            // Sorting
+            switch (sortBy.ToLower())
+            {
+                case "name":
+                    query = query.OrderBy(p => p.Name);
+                    break;
+                case "price_asc":
+                    query = query.OrderBy(p => p.Price);
+                    break;
+                case "price_desc":
+                    query = query.OrderByDescending(p => p.Price);
+                    break;
+                case "stock":
+                    query = query.OrderBy(p => p.StockQuantity);
+                    break;
+                case "oldest":
+                    query = query.OrderBy(p => p.CreatedAt);
+                    break;
+                default: // newest
+                    query = query.OrderByDescending(p => p.CreatedAt);
+                    break;
+            }
+
+            var products = await query.ToListAsync();
+            ViewBag.Search = search;
+            ViewBag.SortBy = sortBy;
+            ViewBag.CategoryId = categoryId;
+            ViewBag.Categories = await _context.Categories.ToListAsync();
 
             return View(products);
+        }
+
+        // GET: admin/products/create
+        [HttpGet("products/create")]
+        public async Task<IActionResult> Create()
+        {
+            ViewBag.Categories = await _context.Categories.ToListAsync();
+            return View();
+        }
+
+        // POST: admin/products/create
+        [HttpPost("products/create")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(Product product)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    product.CreatedAt = DateTime.UtcNow;
+                    product.UpdatedAt = DateTime.UtcNow;
+
+                    // Generate SKU if empty
+                    if (string.IsNullOrEmpty(product.SKU))
+                    {
+                        product.SKU = $"PROD-{DateTime.UtcNow:yyyyMMddHHmmss}";
+                    }
+
+                    _context.Products.Add(product);
+                    await _context.SaveChangesAsync();
+
+                    TempData["SuccessMessage"] = "Produit créé avec succès !";
+                    return RedirectToAction(nameof(Products));
+                }
+
+                ViewBag.Categories = await _context.Categories.ToListAsync();
+                return View(product);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating product");
+                TempData["ErrorMessage"] = "Une erreur s'est produite lors de la création du produit.";
+                ViewBag.Categories = await _context.Categories.ToListAsync();
+                return View(product);
+            }
+        }
+
+        // GET: admin/products/edit/{id}
+        [HttpGet("products/edit/{id}")]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+            {
+                TempData["ErrorMessage"] = "Produit non trouvé.";
+                return RedirectToAction(nameof(Products));
+            }
+
+            ViewBag.Categories = await _context.Categories.ToListAsync();
+            return View(product);
+        }
+
+        // POST: admin/products/edit/{id}
+        [HttpPost("products/edit/{id}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, Product product)
+        {
+            if (id != product.Id)
+            {
+                TempData["ErrorMessage"] = "ID du produit invalide.";
+                return RedirectToAction(nameof(Products));
+            }
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    var existingProduct = await _context.Products.FindAsync(id);
+                    if (existingProduct == null)
+                    {
+                        TempData["ErrorMessage"] = "Produit non trouvé.";
+                        return RedirectToAction(nameof(Products));
+                    }
+
+                    // Update fields
+                    existingProduct.Name = product.Name;
+                    existingProduct.Description = product.Description;
+                    existingProduct.Price = product.Price;
+                    existingProduct.StockQuantity = product.StockQuantity;
+                    existingProduct.SKU = product.SKU;
+                    existingProduct.ImageUrl = product.ImageUrl;
+                    existingProduct.CategoryId = product.CategoryId;
+                    existingProduct.Brand = product.Brand;
+                    existingProduct.IsActive = product.IsActive;
+                    existingProduct.UpdatedAt = DateTime.UtcNow;
+
+                    _context.Update(existingProduct);
+                    await _context.SaveChangesAsync();
+
+                    TempData["SuccessMessage"] = "Produit mis à jour avec succès !";
+                    return RedirectToAction(nameof(Products));
+                }
+
+                ViewBag.Categories = await _context.Categories.ToListAsync();
+                return View(product);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating product {id}");
+                TempData["ErrorMessage"] = "Une erreur s'est produite lors de la mise à jour du produit.";
+                ViewBag.Categories = await _context.Categories.ToListAsync();
+                return View(product);
+            }
+        }
+
+        // GET: admin/products/details/{id}
+        [HttpGet("products/details/{id}")]
+        public async Task<IActionResult> Details(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+            {
+                TempData["ErrorMessage"] = "Produit non trouvé.";
+                return RedirectToAction(nameof(Products));
+            }
+
+            return View(product);
+        }
+
+        // POST: admin/products/delete/{id}
+        [HttpPost("products/delete/{id}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var product = await _context.Products.FindAsync(id);
+                if (product == null)
+                {
+                    TempData["ErrorMessage"] = "Produit non trouvé.";
+                    return RedirectToAction(nameof(Products));
+                }
+
+                // Soft delete or hard delete based on your preference
+                // Option 1: Soft delete (recommended)
+                // product.IsActive = false;
+                // product.UpdatedAt = DateTime.UtcNow;
+
+                // Option 2: Hard delete
+                _context.Products.Remove(product);
+
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Produit supprimé avec succès !";
+                return RedirectToAction(nameof(Products));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting product {id}");
+                TempData["ErrorMessage"] = "Une erreur s'est produite lors de la suppression du produit. Il y a peut-être des commandes associées.";
+                return RedirectToAction(nameof(Products));
+            }
+        }
+
+        // GET: admin/products/toggle-status/{id}
+        [HttpGet("products/toggle-status/{id}")]
+        public async Task<IActionResult> ToggleStatus(int id)
+        {
+            try
+            {
+                var product = await _context.Products.FindAsync(id);
+                if (product == null)
+                {
+                    TempData["ErrorMessage"] = "Produit non trouvé.";
+                    return RedirectToAction(nameof(Products));
+                }
+
+                product.IsActive = !product.IsActive;
+                product.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Produit {(product.IsActive ? "activé" : "désactivé")} avec succès !";
+                return RedirectToAction(nameof(Products));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error toggling status for product {id}");
+                TempData["ErrorMessage"] = "Une erreur s'est produite lors du changement de statut.";
+                return RedirectToAction(nameof(Products));
+            }
+        }
+
+        // AJAX: admin/products/update-stock/{id}
+        [HttpPost("products/update-stock/{id}")]
+        public async Task<IActionResult> UpdateStock(int id, [FromBody] int quantity)
+        {
+            try
+            {
+                var product = await _context.Products.FindAsync(id);
+                if (product == null)
+                {
+                    return Json(new { success = false, message = "Produit non trouvé." });
+                }
+
+                product.StockQuantity = quantity;
+                product.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Stock mis à jour.", newStock = quantity });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating stock for product {id}");
+                return Json(new { success = false, message = "Erreur lors de la mise à jour du stock." });
+            }
         }
 
         [HttpGet("customers")]
@@ -86,6 +354,10 @@ namespace ecom.Controllers
 
                 totalProducts = await _context.Products
                     .CountAsync(p => p.IsActive),
+
+                activeProducts = await _context.Products.CountAsync(p => p.IsActive),
+                outOfStock = await _context.Products.CountAsync(p => p.StockQuantity == 0),
+                lowStock = await _context.Products.CountAsync(p => p.StockQuantity > 0 && p.StockQuantity <= 10),
 
                 totalCustomers = await _context.Users.CountAsync()
             };
@@ -125,7 +397,9 @@ namespace ecom.Controllers
                 {
                     p.Id,
                     p.Name,
-                    p.StockQuantity
+                    p.StockQuantity,
+                    p.Price,
+                    p.CategoryId
                 })
                 .ToListAsync();
 
@@ -138,7 +412,6 @@ namespace ecom.Controllers
         {
             try
             {
-                // Utiliser le service AliExpress pour récupérer les données
                 var product = await _aliExpressService.ImportProductFromUrl(request.Url);
 
                 if (product == null)
@@ -172,7 +445,6 @@ namespace ecom.Controllers
         {
             try
             {
-                // Créer le produit
                 var product = new Product
                 {
                     Name = request.OriginalData.Title,

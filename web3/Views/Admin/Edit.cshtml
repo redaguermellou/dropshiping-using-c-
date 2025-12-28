@@ -1,0 +1,254 @@
+﻿@model ecom.Models.Product
+@{
+    ViewData["Title"] = "Modifier le produit";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Modifier: @Model.Name</h1>
+        <div>
+            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-info me-2">
+                <i class="bi bi-eye me-1"></i>Voir
+            </a>
+            <a asp-action="Products" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+
+    <form asp-action="Edit" method="post">
+        <input type="hidden" asp-for="Id" />
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label asp-for="Name" class="form-label">Nom du produit *</label>
+                                    <input asp-for="Name" class="form-control" required>
+                                    <span asp-validation-for="Name" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="SKU" class="form-label">SKU *</label>
+                                    <input asp-for="SKU" class="form-control" required>
+                                    <small class="text-muted">Code unique d'identification</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description complète *</label>
+                            <textarea asp-for="Description" class="form-control" rows="6" required
+                                      placeholder="Description détaillée du produit"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Price" class="form-label">Prix (€) *</label>
+                                    <input asp-for="Price" type="number" step="0.01" class="form-control" required>
+                                    <span asp-validation-for="Price" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="StockQuantity" class="form-label">Stock *</label>
+                                    <input asp-for="StockQuantity" type="number" class="form-control" required>
+                                    <span asp-validation-for="StockQuantity" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Brand" class="form-label">Marque</label>
+                                    <input asp-for="Brand" class="form-control" placeholder="Ex: Apple, Samsung...">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="CategoryId" class="form-label">Catégorie *</label>
+                                    <select asp-for="CategoryId" class="form-select" required>
+                                        <option value="">Sélectionner une catégorie</option>
+                                        @foreach (var category in ViewBag.Categories)
+                                        {
+                                            <option value="@category.Id">@category.Name</option>
+                                        }
+                                    </select>
+                                    <span asp-validation-for="CategoryId" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="ImageUrl" class="form-label">URL de l'image principale</label>
+                                    <input asp-for="ImageUrl" class="form-control"
+                                           placeholder="https://example.com/image.jpg">
+                                    @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                                    {
+                                        <div class="mt-2">
+                                            <img src="@Model.ImageUrl" class="img-thumbnail" style="max-height: 100px;"
+                                                 alt="Image actuelle" onerror="this.style.display='none'">
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Statut et options</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsActive" class="form-check-input" type="checkbox">
+                                <label asp-for="IsActive" class="form-check-label">
+                                    <strong>Produit actif</strong>
+                                </label>
+                                <div class="form-text">Désactivez pour masquer le produit du catalogue.</div>
+                            </div>
+                        </div>
+
+                        
+
+                       
+                    
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Dates</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label class="form-label">Créé le</label>
+                            <p class="form-control-plaintext">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                        </div>
+
+                        @if (Model.UpdatedAt.HasValue)
+                        {
+                            <div class="mb-2">
+                                <label class="form-label">Dernière modification</label>
+                                <p class="form-control-plaintext">@Model.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="mb-3">Actions rapides</h6>
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer les modifications
+                            </button>
+
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-info">
+                                <i class="bi bi-eye me-1"></i>Voir les détails
+                            </a>
+
+                            <button type="button" class="btn btn-outline-warning"
+                                    onclick="duplicateProduct(@Model.Id)">
+                                <i class="bi bi-copy me-1"></i>Dupliquer le produit
+                            </button>
+
+                            <a asp-action="DeleteConfirmation" asp-route-id="@Model.Id"
+                               class="btn btn-outline-danger">
+                                <i class="bi bi-trash me-1"></i>Supprimer le produit
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Products" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Annuler
+                            </a>
+                            <div>
+                                <button type="submit" name="action" value="save" class="btn btn-primary me-2">
+                                    <i class="bi bi-check-circle me-1"></i>Enregistrer
+                                </button>
+                                <button type="submit" name="action" value="saveAndContinue" class="btn btn-outline-primary">
+                                    <i class="bi bi-save me-1"></i>Enregistrer et continuer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        function duplicateProduct(productId) {
+            if (confirm("Dupliquer ce produit ?\n\nUn nouveau produit identique sera créé.")) {
+                window.location.href = `/admin/products/duplicate/${productId}`;
+            }
+        }
+
+        // Auto-calculate character count for SEO fields
+        document.addEventListener('DOMContentLoaded', function() {
+            const metaTitle = document.querySelector('#MetaTitle');
+            const metaDescription = document.querySelector('#MetaDescription');
+
+            function updateCharacterCount(field, maxLength) {
+                const count = field.value.length;
+                const counter = field.nextElementSibling?.querySelector('.char-count');
+                if (counter) {
+                    counter.textContent = `${count}/${maxLength} caractères`;
+                    if (count > maxLength) {
+                        counter.classList.add('text-danger');
+                    } else {
+                        counter.classList.remove('text-danger');
+                    }
+                }
+            }
+
+            if (metaTitle) {
+                const counter = document.createElement('small');
+                counter.className = 'char-count text-muted d-block mt-1';
+                metaTitle.parentNode.appendChild(counter);
+
+                metaTitle.addEventListener('input', () => updateCharacterCount(metaTitle, 60));
+                updateCharacterCount(metaTitle, 60);
+            }
+
+            if (metaDescription) {
+                const counter = document.createElement('small');
+                counter.className = 'char-count text-muted d-block mt-1';
+                metaDescription.parentNode.appendChild(counter);
+
+                metaDescription.addEventListener('input', () => updateCharacterCount(metaDescription, 160));
+                updateCharacterCount(metaDescription, 160);
+            }
+        });
+    </script>
+}

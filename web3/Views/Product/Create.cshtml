@@ -1,0 +1,130 @@
+﻿@model ecom.Models.Product
+@{
+    ViewData["Title"] = "Créer un produit";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Créer un produit</h1>
+        <a asp-action="Products" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label asp-for="Name" class="form-label">Nom du produit *</label>
+                                    <input asp-for="Name" class="form-control" required>
+                                    <span asp-validation-for="Name" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="SKU" class="form-label">SKU</label>
+                                    <input asp-for="SKU" class="form-control">
+                                    <small class="text-muted">Laissé vide pour générer automatiquement</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description complète</label>
+                            <textarea asp-for="Description" class="form-control" rows="5"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Price" class="form-label">Prix (€) *</label>
+                                    <input asp-for="Price" type="number" step="0.01" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="StockQuantity" class="form-label">Stock *</label>
+                                    <input asp-for="StockQuantity" type="number" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Brand" class="form-label">Marque</label>
+                                    <input asp-for="Brand" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="CategoryId" class="form-label">Catégorie *</label>
+                                    <select asp-for="CategoryId" class="form-select" required>
+                                        <option value="">Sélectionner une catégorie</option>
+                                        @foreach (var category in ViewBag.Categories)
+                                        {
+                                            <option value="@category.Id">@category.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="ImageUrl" class="form-label">URL de l'image</label>
+                                    <input asp-for="ImageUrl" class="form-control" placeholder="https://example.com/image.jpg">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input asp-for="IsActive" class="form-check-input" checked>
+                            <label asp-for="IsActive" class="form-check-label">Produit actif</label>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Products" class="btn btn-outline-secondary">Annuler</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Créer le produit
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Instructions</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Tous les champs marqués d'un * sont obligatoires.
+                    </p>
+                    <p class="small text-muted mb-2">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        Le SKU est généré automatiquement s'il n'est pas spécifié.
+                    </p>
+                    <p class="small text-muted">
+                        <i class="bi bi-image me-1"></i>
+                        Vous pouvez ajouter l'URL d'une image hébergée en ligne.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

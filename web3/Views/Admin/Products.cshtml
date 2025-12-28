@@ -1,0 +1,298 @@
+﻿@model IEnumerable<ecom.Models.Product>
+@{
+    ViewData["Title"] = "Gestion des produits";
+    Layout = "_AdminLayout"; // Assuming you have an admin layout
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Gestion des produits</h1>
+        <div>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Nouveau produit
+            </a>
+            <a asp-action="ImportProducts" class="btn btn-outline-secondary">
+                <i class="bi bi-upload me-1"></i>Importer
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Recherche</label>
+                    <input type="text" class="form-control" name="search" value="@ViewBag.Search" placeholder="Nom, SKU, description...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Catégorie</label>
+                    <select class="form-select" name="categoryId">
+                        <option value="">Toutes</option>
+                        <!-- Populate with categories from ViewBag -->
+                        @if (ViewBag.Categories != null)
+                        {
+                            foreach (var category in ViewBag.Categories)
+                            {
+                                <option value="@category.Id" selected="@(ViewBag.CategoryId == category.Id)">@category.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Statut</label>
+                    <select class="form-select" name="isActive">
+                        <option value="">Tous</option>
+                        <option value="true" selected="@(ViewBag.IsActive == true)">Actif</option>
+                        <option value="false" selected="@(ViewBag.IsActive == false)">Inactif</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">En stock</label>
+                    <select class="form-select" name="inStock">
+                        <option value="">Tous</option>
+                        <option value="true" selected="@(ViewBag.InStock == true)">En stock</option>
+                        <option value="false" selected="@(ViewBag.InStock == false)">Rupture</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-filter me-1"></i>Filtrer
+                    </button>
+                    <a asp-action="Products" class="btn btn-outline-secondary">Réinitialiser</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Image</th>
+                                <th>Nom</th>
+                                <th>SKU</th>
+                                <th>Catégorie</th>
+                                <th>Prix</th>
+                                <th>Stock</th>
+                                <th>Statut</th>
+                                <th>Créé le</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var product in Model)
+                            {
+                                <tr>
+                                    <td>@product.Id</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(product.ImageUrl))
+                                        {
+                                            <img src="@product.ImageUrl" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;" alt="@product.Name">
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                                <i class="bi bi-image text-muted"></i>
+                                            </div>
+                                        }
+                                    </td>
+                                   
+                                    <td><code>@product.SKU</code></td>
+                                    <td>
+                                        @if (product.Category != null)
+                                        {
+                                            <span class="badge bg-secondary">@product.Category.Name</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>@product.Price.ToString("C2")</td>
+                                    <td>
+                                        @if (product.StockQuantity > 10)
+                                        {
+                                            <span class="badge bg-success">@product.StockQuantity</span>
+                                        }
+                                        else if (product.StockQuantity > 0)
+                                        {
+                                            <span class="badge bg-warning">@product.StockQuantity</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">0</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (product.IsActive)
+                                        {
+                                            <span class="badge bg-success">Actif</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactif</span>
+                                        }
+                                    </td>
+                                    <td>@product.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a asp-action="Edit" asp-route-id="@product.Id" class="btn btn-outline-primary">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    onclick="confirmDelete(@product.Id, '@product.Name.Replace("'", "\\'")')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                @if (ViewBag.TotalPages > 1)
+                {
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            @if (ViewBag.CurrentPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" asp-action="Products"
+                                       asp-route-page="@(ViewBag.CurrentPage - 1)"
+                                       asp-route-search="@ViewBag.Search"
+                                       asp-route-categoryId="@ViewBag.CategoryId"
+                                       asp-route-isActive="@ViewBag.IsActive"
+                                       asp-route-inStock="@ViewBag.InStock">
+                                        Précédent
+                                    </a>
+                                </li>
+                            }
+
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                    <a class="page-link" asp-action="Products"
+                                       asp-route-page="@i"
+                                       asp-route-search="@ViewBag.Search"
+                                       asp-route-categoryId="@ViewBag.CategoryId"
+                                       asp-route-isActive="@ViewBag.IsActive"
+                                       asp-route-inStock="@ViewBag.InStock">
+                                        @i
+                                    </a>
+                                </li>
+                            }
+
+                            @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" asp-action="Products"
+                                       asp-route-page="@(ViewBag.CurrentPage + 1)"
+                                       asp-route-search="@ViewBag.Search"
+                                       asp-route-categoryId="@ViewBag.CategoryId"
+                                       asp-route-isActive="@ViewBag.IsActive"
+                                       asp-route-inStock="@ViewBag.InStock">
+                                        Suivant
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                }
+
+                <div class="mt-3 text-muted">
+                    <small>@Model.Count() produits affichés</small>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-box-seam display-1 text-muted"></i>
+                    <h4 class="mt-3">Aucun produit trouvé</h4>
+                    <p class="text-muted">Commencez par ajouter votre premier produit</p>
+                    <a asp-action="Create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Créer un produit
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le produit <strong id="productNameToDelete"></strong> ?</p>
+                <p class="text-danger"><small>Cette action est irréversible.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="post" asp-action="Delete">
+                    <input type="hidden" id="productIdToDelete" name="id" />
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function confirmDelete(id, name) {
+            document.getElementById('productNameToDelete').textContent = name;
+            document.getElementById('productIdToDelete').value = id;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+
+        // Auto-submit filters on select change (optional)
+        document.addEventListener('DOMContentLoaded', function() {
+            const filters = ['categoryId', 'isActive', 'inStock'];
+            filters.forEach(filter => {
+                const element = document.querySelector(`select[name="${filter}"]`);
+                if (element) {
+                    element.addEventListener('change', function() {
+                        if (this.value !== '') {
+                            this.form.submit();
+                        }
+                    });
+                }
+            });
+
+            // Quick status toggle
+            const statusToggles = document.querySelectorAll('.status-toggle');
+            statusToggles.forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const productId = this.dataset.productId;
+                    const isActive = this.checked;
+
+                    fetch(`/Admin/ToggleProductStatus?id=${productId}&isActive=${isActive}`, {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        }
+                    }).then(response => {
+                        if (!response.ok) {
+                            this.checked = !isActive; // Revert if error
+                            alert('Erreur lors de la mise à jour du statut');
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+}
