@@ -1,0 +1,236 @@
+﻿<!-- Views/Admin/Dashboard.cshtml -->
+@{
+    ViewData["Title"] = "Tableau de bord";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Tableau de bord</h1>
+        <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+            <i class="bi bi-download me-1"></i> Générer rapport
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Chiffre d'affaires (Mois)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="monthlyRevenue">Chargement...</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-currency-euro fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Commandes (Mois)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="monthlyOrders">Chargement...</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-cart-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Produits
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalProducts">Chargement...</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2 stat-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Clients
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalCustomers">Chargement...</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Tables -->
+    <div class="row">
+        <!-- Recent Orders -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Commandes récentes</h6>
+                    <a asp-controller="Order" asp-action="Index" class="btn btn-sm btn-primary">Voir tout</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>N° Commande</th>
+                                    <th>Client</th>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentOrdersTable">
+                                <!-- Les données seront chargées par AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Actions rapides</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3">
+                        <a asp-controller="Admin" asp-action="ImportProduct" class="btn btn-primary btn-lg">
+                            <i class="bi bi-download me-2"></i>Importer AliExpress
+                        </a>
+                        <a asp-controller="Product" asp-action="Create" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-plus-circle me-2"></i>Ajouter un produit
+                        </a>
+                        <a asp-controller="Order" asp-action="Create" class="btn btn-outline-success btn-lg">
+                            <i class="bi bi-cart-plus me-2"></i>Créer une commande
+                        </a>
+                        <a asp-controller="Admin" asp-action="Analytics" class="btn btn-outline-info btn-lg">
+                            <i class="bi bi-graph-up me-2"></i>Analytiques
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Alert -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">Stock faible</h6>
+                </div>
+                <div class="card-body">
+                    <div id="lowStockProducts">
+                        <!-- Les données seront chargées par AJAX -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            loadDashboardData();
+
+            function loadDashboardData() {
+                // Charger les statistiques
+                $.get('/admin/api/stats', function(stats) {
+                    $('#monthlyRevenue').text(stats.monthlyRevenue + ' €');
+                    $('#monthlyOrders').text(stats.monthlyOrders);
+                    $('#totalProducts').text(stats.totalProducts);
+                    $('#totalCustomers').text(stats.totalCustomers);
+                });
+
+                // Charger les commandes récentes
+                $.get('/admin/api/recent-orders', function(orders) {
+                    let html = '';
+                    orders.forEach(order => {
+                        html += `
+                            <tr>
+                                <td>
+                                    <a href="/order/details/${order.id}">${order.orderNumber}</a>
+                                </td>
+                                <td>${order.customerEmail}</td>
+                                <td>${order.totalAmount} €</td>
+                                <td>
+                                    <span class="badge bg-${getStatusColor(order.status)}">
+                                        ${order.status}
+                                    </span>
+                                </td>
+                                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                    });
+                    $('#recentOrdersTable').html(html);
+                });
+
+                // Charger les produits en stock faible
+                $.get('/admin/api/low-stock', function(products) {
+                    let html = '';
+                    if (products.length > 0) {
+                        products.forEach(product => {
+                            html += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 ${product.stockQuantity < 5 ? 'bg-danger text-white rounded' : 'bg-warning rounded'}">
+                                    <div>
+                                        <strong>${product.name}</strong><br>
+                                        <small>Stock: ${product.stockQuantity}</small>
+                                    </div>
+                                    <a href="/product/edit/${product.id}" class="btn btn-sm btn-light">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html = '<p class="text-center text-muted">Aucun stock faible</p>';
+                    }
+                    $('#lowStockProducts').html(html);
+                });
+            }
+
+            function getStatusColor(status) {
+                switch(status) {
+                    case 'Pending': return 'warning';
+                    case 'Processing': return 'info';
+                    case 'Shipped': return 'primary';
+                    case 'Delivered': return 'success';
+                    case 'Cancelled': return 'danger';
+                    default: return 'secondary';
+                }
+            }
+
+            // Recharger les données toutes les 30 secondes
+            setInterval(loadDashboardData, 30000);
+        });
+    </script>
+}

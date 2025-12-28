@@ -399,3 +399,75 @@ const Utils = {
         return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
 };
+// Add this after the Utils class in your site.js
+
+// Product card hover effects
+document.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('mouseenter', () => {
+        card.classList.add('hovered');
+    });
+
+    card.addEventListener('mouseleave', () => {
+        card.classList.remove('hovered');
+    });
+});
+
+// Initialize all tooltips
+function initTooltips() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+}
+
+// Cart quantity updates
+function updateCartQuantity(input) {
+    const min = parseInt(input.getAttribute('min')) || 1;
+    const max = parseInt(input.getAttribute('max')) || 99;
+    let value = parseInt(input.value) || min;
+
+    if (value < min) value = min;
+    if (value > max) value = max;
+
+    input.value = value;
+}
+
+// Initialize cart quantity controls
+document.addEventListener('click', function (e) {
+    // Quantity minus
+    if (e.target.classList.contains('quantity-minus')) {
+        e.preventDefault();
+        const input = e.target.nextElementSibling;
+        input.value = Math.max(parseInt(input.value) - 1, parseInt(input.min) || 1);
+        updateCartQuantity(input);
+    }
+
+    // Quantity plus
+    if (e.target.classList.contains('quantity-plus')) {
+        e.preventDefault();
+        const input = e.target.previousElementSibling;
+        input.value = Math.min(parseInt(input.value) + 1, parseInt(input.max) || 99);
+        updateCartQuantity(input);
+    }
+});
+
+// Form validation enhancements
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function (e) {
+        const submitBtn = this.querySelector('[type="submit"]');
+        if (submitBtn && !submitBtn.disabled) {
+            submitBtn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+            submitBtn.disabled = true;
+        }
+    });
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function () {
+    initTooltips();
+
+    // Add animation classes to elements that should animate on scroll
+    document.querySelectorAll('.product-card, .featured-item, .category-card').forEach(el => {
+        el.classList.add('animate-on-scroll');
+    });
+});

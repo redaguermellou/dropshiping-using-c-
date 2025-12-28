@@ -1,4 +1,4 @@
-using ecom.Data;
+ï»¿using ecom.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Ajouter les services au conteneur
 builder.Services.AddControllersWithViews();
 
-// Configuration de la base de données SQL Server
+// Configuration de la base de donnï¿½es SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -44,7 +44,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage(); // Affiche les erreurs détaillées
+    app.UseDeveloperExceptionPage(); // Affiche les erreurs dï¿½taillï¿½es
 }
 else
 {
@@ -66,7 +66,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Routes supplémentaires pour les zones courantes
+// Routes supplï¿½mentaires pour les zones courantes
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");

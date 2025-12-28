@@ -1,0 +1,364 @@
+﻿<!-- Views/Admin/ImportProduct.cshtml -->
+@{
+    ViewData["Title"] = "Importer AliExpress";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Importer depuis AliExpress</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Importer un produit</h6>
+                </div>
+                <div class="card-body">
+                    <!-- Étape 1 : URL -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">1. Collez l'URL AliExpress</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg"
+                                   id="productUrl"
+                                   placeholder="https://fr.aliexpress.com/item/1005001234567890.html">
+                            <button class="btn btn-primary" type="button" onclick="fetchProductData()">
+                                <i class="bi bi-search me-1"></i> Analyser
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            Copiez-collez l'URL complète du produit AliExpress
+                        </div>
+                    </div>
+
+                    <!-- Prévisualisation du produit -->
+                    <div id="productPreview" class="d-none">
+                        <div class="card border-success mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="m-0">Prévisualisation du produit</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <img id="previewImage" src="" class="img-fluid rounded" alt="Produit">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h4 id="previewTitle"></h4>
+                                        <p id="previewDescription" class="text-muted"></p>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <p><strong>Prix source:</strong> <span id="previewSourcePrice"></span></p>
+                                                <p><strong>SKU:</strong> <span id="previewSku"></span></p>
+                                            </div>
+                                            <div class="col-6">
+                                                <p><strong>Catégorie:</strong> <span id="previewCategory"></span></p>
+                                                <p><strong>Images disponibles:</strong> <span id="previewImageCount"></span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Étape 2 : Configuration -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">2. Configurez votre produit</label>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Catégorie *</label>
+                                    <select class="form-select" id="categorySelect">
+                                        <option value="">Sélectionnez une catégorie</option>
+                                        <!-- Les catégories seront chargées par AJAX -->
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Sous-catégorie</label>
+                                    <select class="form-select" id="subCategorySelect">
+                                        <option value="">Sélectionnez une sous-catégorie</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Marge (%) *</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="margin" value="30" min="0" max="200" step="0.1">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Stock initial *</label>
+                                    <input type="number" class="form-control" id="stockQuantity" value="100" min="0">
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Prix de vente *</label>
+                                    <input type="number" class="form-control" id="sellingPrice" step="0.01" readonly>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label">Description supplémentaire</label>
+                                    <textarea class="form-control" id="additionalDescription" rows="3" placeholder="Ajoutez des détails supplémentaires..."></textarea>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="isActive" checked>
+                                        <label class="form-check-label">
+                                            Activer le produit immédiatement
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Étape 3 : Sauvegarde -->
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" onclick="importProduct()">
+                                <i class="bi bi-cloud-upload me-2"></i> Importer le produit
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="resetForm()">
+                                <i class="bi bi-x-circle me-2"></i> Annuler
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Calculatrice de marge -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Calculatrice de marge</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Prix d'achat (USD)</label>
+                        <input type="number" class="form-control" id="calcCostPrice" value="0" step="0.01">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Marge (%)</label>
+                        <input type="number" class="form-control" id="calcMargin" value="30" step="0.1">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Taux de change USD/EUR</label>
+                        <input type="number" class="form-control" id="calcExchangeRate" value="0.85" step="0.0001">
+                    </div>
+
+                    <button class="btn btn-outline-primary w-100 mb-3" onclick="calculatePrice()">
+                        <i class="bi bi-calculator me-1"></i> Calculer
+                    </button>
+
+                    <div class="alert alert-info">
+                        <h6>Résultat:</h6>
+                        <p>Prix d'achat en EUR: <span id="calcPriceEur" class="fw-bold">0.00</span> €</p>
+                        <p>Prix de vente: <span id="calcSellingPrice" class="fw-bold">0.00</span> €</p>
+                        <p>Marge: <span id="calcProfit" class="fw-bold">0.00</span> €</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guide rapide -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Guide d'import</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="list-group list-group-numbered">
+                        <li class="list-group-item border-0">Copiez l'URL du produit AliExpress</li>
+                        <li class="list-group-item border-0">Cliquez sur "Analyser" pour récupérer les données</li>
+                        <li class="list-group-item border-0">Configurez la marge et autres paramètres</li>
+                        <li class="list-group-item border-0">Cliquez sur "Importer" pour ajouter au catalogue</li>
+                    </ol>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <small>
+                            <strong>Conseil:</strong> Vérifiez toujours les informations avant d'importer.
+                            Les prix peuvent varier selon le fournisseur.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-success mt-3">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        <small>
+                            <strong>Astuce:</strong> Utilisez la calculatrice pour déterminer
+                            le bon prix de vente avec votre marge souhaitée.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let productData = null;
+
+        // Charger les catégories au démarrage
+        $(document).ready(function() {
+            loadCategories();
+        });
+
+        function loadCategories() {
+            $.get('/api/categories', function(categories) {
+                let html = '<option value="">Sélectionnez une catégorie</option>';
+                categories.forEach(cat => {
+                    html += `<option value="${cat.id}">${cat.name}</option>`;
+                });
+                $('#categorySelect').html(html);
+            });
+        }
+
+        function fetchProductData() {
+            const url = $('#productUrl').val();
+            if (!url) {
+                alert('Veuillez coller une URL AliExpress');
+                return;
+            }
+
+            // Afficher le chargement
+            $('#productPreview').addClass('d-none');
+            $('#productPreview').before(`
+                <div id="loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p class="mt-2">Analyse du produit en cours...</p>
+                </div>
+            `);
+
+            // Appeler l'API backend
+            $.post('/api/aliexpress/fetch', { url: url })
+                .done(function(response) {
+                    if (response.success) {
+                        productData = response.data;
+                        showProductPreview(productData);
+                        $('#productPreview').removeClass('d-none');
+                        calculateAutoPrice();
+                    } else {
+                        alert('Erreur: ' + response.message);
+                    }
+                })
+                .fail(function() {
+                    alert('Erreur de connexion au serveur');
+                })
+                .always(function() {
+                    $('#loading').remove();
+                });
+        }
+
+        function showProductPreview(data) {
+            $('#previewTitle').text(data.title);
+            $('#previewDescription').text(data.description.substring(0, 200) + '...');
+            $('#previewSourcePrice').text(data.price + ' ' + data.currency);
+            $('#previewSku').text(data.sku || 'Non spécifié');
+            $('#previewCategory').text(data.category || 'Non spécifié');
+            $('#previewImageCount').text(data.images ? data.images.length : 0);
+
+            if (data.images && data.images.length > 0) {
+                $('#previewImage').attr('src', data.images[0]);
+            }
+        }
+
+        function calculateAutoPrice() {
+            if (!productData) return;
+
+            const costPrice = parseFloat(productData.price) || 0;
+            const margin = parseFloat($('#margin').val()) || 30;
+            const exchangeRate = 0.85; // Taux USD/EUR
+
+            const priceInEur = costPrice * exchangeRate;
+            const marginAmount = priceInEur * (margin / 100);
+            const sellingPrice = priceInEur + marginAmount;
+
+            $('#sellingPrice').val(sellingPrice.toFixed(2));
+        }
+
+        function calculatePrice() {
+            const costPrice = parseFloat($('#calcCostPrice').val()) || 0;
+            const margin = parseFloat($('#calcMargin').val()) || 30;
+            const exchangeRate = parseFloat($('#calcExchangeRate').val()) || 0.85;
+
+            const priceInEur = costPrice * exchangeRate;
+            const marginAmount = priceInEur * (margin / 100);
+            const sellingPrice = priceInEur + marginAmount;
+
+            $('#calcPriceEur').text(priceInEur.toFixed(2));
+            $('#calcSellingPrice').text(sellingPrice.toFixed(2));
+            $('#calcProfit').text(marginAmount.toFixed(2));
+
+            // Mettre à jour les champs du formulaire principal
+            if (productData) {
+                $('#margin').val(margin);
+                $('#sellingPrice').val(sellingPrice.toFixed(2));
+            }
+        }
+
+        function importProduct() {
+            if (!productData) {
+                alert('Veuillez d\'abord analyser un produit');
+                return;
+            }
+
+            const categoryId = $('#categorySelect').val();
+            if (!categoryId) {
+                alert('Veuillez sélectionner une catégorie');
+                return;
+            }
+
+            const importData = {
+                originalData: productData,
+                categoryId: categoryId,
+                subCategoryId: $('#subCategorySelect').val() || null,
+                margin: parseFloat($('#margin').val()),
+                stockQuantity: parseInt($('#stockQuantity').val()),
+                sellingPrice: parseFloat($('#sellingPrice').val()),
+                additionalDescription: $('#additionalDescription').val(),
+                isActive: $('#isActive').is(':checked')
+            };
+
+            // Désactiver le bouton pendant l'import
+            $('button').prop('disabled', true);
+            $('#productPreview').before(`
+                <div id="importing" class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Importation...</span>
+                    </div>
+                    <p class="mt-2">Importation du produit en cours...</p>
+                </div>
+            `);
+
+            $.post('/api/aliexpress/import', importData)
+                .done(function(response) {
+                    if (response.success) {
+                        alert('Produit importé avec succès !');
+                        window.location.href = '/admin/products';
+                    } else {
+                        alert('Erreur: ' + response.message);
+                    }
+                })
+                .fail(function() {
+                    alert('Erreur lors de l\'importation');
+                })
+                .always(function() {
+                    $('#importing').remove();
+                    $('button').prop('disabled', false);
+                });
+        }
+
+        function resetForm() {
+            $('#productUrl').val('');
+            $('#productPreview').addClass('d-none');
+            productData = null;
+        }
+
+        // Écouter les changements de marge
+        $('#margin').on('input', calculateAutoPrice);
+    </script>
+}

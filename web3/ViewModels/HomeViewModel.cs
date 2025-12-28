@@ -1,5 +1,5 @@
 ﻿using ecom.Models;
-using ecom.Models;
+
 using System.ComponentModel.DataAnnotations;
 
 namespace ecom.ViewModels

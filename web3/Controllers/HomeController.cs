@@ -14,15 +14,15 @@ namespace ecom.Controllers
 
         public HomeController(ApplicationDbContext context, ILogger<HomeController> logger)
         {
-            _context = context;
-            _logger = logger;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IActionResult> Index()
         {
             try
             {
-                // Récupérer les produits en vedette
+                // Featured products
                 var featuredProducts = await _context.Products
                     .Where(p => p.IsActive)
                     .Include(p => p.Category)
@@ -30,7 +30,7 @@ namespace ecom.Controllers
                     .Take(8)
                     .ToListAsync();
 
-                // Récupérer les catégories
+                // Main categories
                 var categories = await _context.Categories
                     .Where(c => c.IsActive && c.ParentCategoryId == null)
                     .Take(6)
@@ -38,17 +38,44 @@ namespace ecom.Controllers
 
                 var viewModel = new HomeViewModel
                 {
-                    FeaturedProducts = featuredProducts,
-                    Categories = categories,
-                    BannerMessage = "Livraison gratuite à partir de 50€ d'achat!"
+                    FeaturedProducts = featuredProducts ?? new List<Product>(),
+                    Categories = categories ?? new List<Category>(),
+                    BannerMessage = "Free shipping on orders over $50!"
                 };
 
                 return View(viewModel);
             }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, "Database error in Index method");
+                Console.WriteLine($"Database Error in Index: {dbEx.Message}");
+                Console.WriteLine($"Inner Exception: {dbEx.InnerException?.Message}");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "Database connection error. Please try again later."
+                });
+            }
+            catch (InvalidOperationException ioEx)
+            {
+                _logger.LogError(ioEx, "Invalid operation in Index method");
+                Console.WriteLine($"Invalid Operation in Index: {ioEx.Message}");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "Service configuration error. Please contact support."
+                });
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in Index method");
-                return View("Error", new Models.ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+                _logger.LogError(ex, "Unexpected error in Index method");
+                Console.WriteLine($"Unexpected Error in Index: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "An unexpected error occurred. Please try again."
+                });
             }
         }
 
@@ -56,30 +83,32 @@ namespace ecom.Controllers
         {
             try
             {
-                var pageSize = 12;
-                var query = _context.Products
-                    .Where(p => p.IsActive)
-                    .Include(p => p.Category)
-                    .AsQueryable();
+                const int pageSize = 12;
 
+                IQueryable<Product> query = _context.Products
+                    .Where(p => p.IsActive)
+                    .Include(p => p.Category);
+
+                // Filter by category
                 if (categoryId.HasValue && categoryId > 0)
                 {
                     query = query.Where(p => p.CategoryId == categoryId.Value);
                 }
 
+                // Search filter
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var searchLower = search.ToLower();
                     query = query.Where(p =>
                         p.Name.ToLower().Contains(searchLower) ||
-                        (p.Description != null && p.Description.ToLower().Contains(searchLower)));
+                        (!string.IsNullOrEmpty(p.Description) && p.Description.ToLower().Contains(searchLower)));
                 }
 
+                // Pagination
                 var totalProducts = await query.CountAsync();
                 var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
 
-                if (page < 1) page = 1;
-                if (totalPages > 0 && page > totalPages) page = totalPages;
+                page = Math.Clamp(page, 1, totalPages > 0 ? totalPages : 1);
 
                 var products = await query
                     .OrderBy(p => p.Name)
@@ -93,8 +122,8 @@ namespace ecom.Controllers
 
                 var viewModel = new ProductsViewModel
                 {
-                    Products = products,
-                    Categories = categories,
+                    Products = products ?? new List<Product>(),
+                    Categories = categories ?? new List<Category>(),
                     CurrentCategoryId = categoryId,
                     SearchTerm = search,
                     CurrentPage = page,
@@ -104,10 +133,28 @@ namespace ecom.Controllers
 
                 return View(viewModel);
             }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, "Database error in Products method");
+                Console.WriteLine($"Database Error in Products: {dbEx.Message}");
+                Console.WriteLine($"Inner Exception: {dbEx.InnerException?.Message}");
+                ModelState.AddModelError("", "Database error occurred while retrieving products.");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "Unable to load products. Please try again later."
+                });
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in Products method");
-                return View("Error", new Models.ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+                _logger.LogError(ex, "Unexpected error in Products method");
+                Console.WriteLine($"Unexpected Error in Products: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "An error occurred while loading products."
+                });
             }
         }
 
@@ -115,12 +162,19 @@ namespace ecom.Controllers
         {
             try
             {
+                if (id <= 0)
+                {
+                    Console.WriteLine($"Invalid product ID requested: {id}");
+                    return NotFound();
+                }
+
                 var product = await _context.Products
                     .Include(p => p.Category)
                     .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
 
                 if (product == null)
                 {
+                    Console.WriteLine($"Product not found with ID: {id}");
                     return NotFound();
                 }
 
@@ -134,19 +188,34 @@ namespace ecom.Controllers
                 var viewModel = new ProductDetailViewModel
                 {
                     Product = product,
-                    RelatedProducts = relatedProducts
+                    RelatedProducts = relatedProducts ?? new List<Product>()
                 };
 
                 return View(viewModel);
             }
+            catch (DbUpdateException dbEx)
+            {
+                _logger.LogError(dbEx, $"Database error in ProductDetails for ID: {id}");
+                Console.WriteLine($"Database Error in ProductDetails: {dbEx.Message}");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "Database error while retrieving product details."
+                });
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error in ProductDetails for ID: {id}");
-                return View("Error", new Models.ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+                _logger.LogError(ex, $"Unexpected error in ProductDetails for ID: {id}");
+                Console.WriteLine($"Unexpected Error in ProductDetails: {ex.Message}");
+                return View("Error", new Models.ErrorViewModel
+                {
+                    RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                    Message = "An error occurred while loading product details."
+                });
             }
         }
 
-        // Méthodes simples pour les pages statiques
+        // Simple methods for static pages
         public IActionResult Contact()
         {
             return View();
@@ -158,19 +227,23 @@ namespace ecom.Controllers
         {
             if (!ModelState.IsValid)
             {
+                Console.WriteLine($"Contact form validation failed. Errors: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
                 return View(model);
             }
 
             try
             {
-                // Ici, vous pouvez ajouter la logique d'envoi d'email
-                TempData["SuccessMessage"] = "Merci pour votre message! Nous vous répondrons dans les plus brefs délais.";
+                // Here you can add email sending logic
+                Console.WriteLine($"Contact form submitted successfully. Name: {model.Name}, Email: {model.Email}");
+
+                TempData["SuccessMessage"] = "Thank you for your message! We will respond as soon as possible.";
                 return RedirectToAction("Contact");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in Contact POST method");
-                ModelState.AddModelError("", "Une erreur est survenue lors de l'envoi de votre message.");
+                Console.WriteLine($"Error sending contact form: {ex.Message}");
+                ModelState.AddModelError("", "An error occurred while sending your message.");
                 return View(model);
             }
         }
@@ -188,7 +261,53 @@ namespace ecom.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new Models.ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            Console.WriteLine($"Error page accessed. Request ID: {Activity.Current?.Id ?? HttpContext.TraceIdentifier}");
+            return View(new Models.ErrorViewModel
+            {
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                Message = "An error occurred while processing your request."
+            });
+        }
+
+        // Additional diagnostic action for testing
+        public IActionResult Diagnostic()
+        {
+            try
+            {
+                Console.WriteLine("Diagnostic endpoint called");
+
+                var dbContextInfo = new
+                {
+                    IsContextNull = _context == null,
+                    CanConnect = _context.Database.CanConnect(),
+                    ProviderName = _context.Database.ProviderName,
+                    CategoriesCount = _context.Categories?.Count(),
+                    ProductsCount = _context.Products?.Count()
+                };
+
+                Console.WriteLine($"DbContext Info: {System.Text.Json.JsonSerializer.Serialize(dbContextInfo)}");
+
+                return Json(new
+                {
+                    Status = "OK",
+                    Timestamp = DateTime.UtcNow,
+                    DbContext = dbContextInfo,
+                    Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Diagnostic Error: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+
+                return Json(new
+                {
+                    Status = "ERROR",
+                    Message = ex.Message,
+                    ExceptionType = ex.GetType().Name,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
         }
     }
 }
