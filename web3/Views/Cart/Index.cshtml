@@ -1,44 +1,180 @@
-﻿@model ecom.ViewModels.CartViewModel
+﻿@model ecom.Models.Cart
 @{
-    ViewData["Title"] = "Debug Cart";
+    ViewData["Title"] = "Mon Panier";
 }
 
-<h1>Cart Debug View</h1>
+<div class="container py-5 mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Accueil</a></li>
+                    <li class="breadcrumb-item active">Panier</li>
+                </ol>
+            </nav>
+            <h1 class="display-5 fw-bold mb-0">Votre Panier</h1>
+            <p class="text-muted">Gérez les articles que vous avez sélectionnés avant de passer à la caisse.</p>
+        </div>
+    </div>
 
-<h2>Model Status:</h2>
-<p>Model is null: @(Model == null)</p>
-
-@if (Model != null)
-{
-    <h2>Cart Status:</h2>
-    <p>Cart is null: @(Model.Cart == null)</p>
-
-    @if (Model.Cart != null)
+    @if (Model == null || Model.IsEmpty)
     {
-        <h2>Items Status:</h2>
-        <p>Items is null: @(Model.Cart.Items == null)</p>
-        <p>Items count: @Model.Cart.Items?.Count()</p>
-
-        @if (Model.Cart.Items != null && Model.Cart.Items.Any())
-        {
-            <h2>Cart Items:</h2>
-            <ul>
-                @foreach (var item in Model.Cart.Items)
-                {
-                    <li>
-                        Item ID: @item.Id,
-                        Quantity: @item.Quantity,
-                        Product Name: @(item.Product?.Name ?? "NULL"),
-                        Subtotal: @item.Subtotal
-                    </li>
-                }
-            </ul>
-
-            <h2>Totals:</h2>
-            <p>Total Amount: @Model.TotalAmount</p>
-            <p>Total with VAT: @Model.TotalAmountWithVat</p>
-        }
+        <div class="text-center py-5 glass rounded-4 shadow-sm">
+            <div class="mb-4">
+                <i class="bi bi-cart-x display-1 text-primary opacity-50"></i>
+            </div>
+            <h2 class="fw-bold">Votre panier est vide</h2>
+            <p class="text-muted mb-4">Il semble que vous n'ayez pas encore ajouté d'articles à votre panier.</p>
+            <a asp-controller="Home" asp-action="Products" class="btn btn-primary btn-lg">
+                <i class="bi bi-bag-plus me-2"></i>Découvrir nos produits
+            </a>
+        </div>
     }
-}
+    else
+    {
+        <div class="row g-4">
+            <!-- Items Column -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="card-header bg-white py-3">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="mb-0 fw-bold">Articles (@Model.ItemCount)</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        @foreach (var item in Model.Items)
+                        {
+                            <div class="p-3 border-bottom cart-item-row fade-in">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2 col-4">
+                                        <div class="product-image-container rounded-3 border bg-light">
+                                            @if (!string.IsNullOrEmpty(item.Product?.ImageUrl))
+                                            {
+                                                <img src="@item.Product.ImageUrl" alt="@item.Product.Name" class="img-fluid rounded-3">
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex align-items-center justify-content-center h-100 min-vh-10" style="min-height: 80px;">
+                                                    <i class="bi bi-image text-muted fs-3"></i>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 col-8">
+                                        <h6 class="fw-bold mb-1 text-truncate">@item.Product.Name</h6>
+                                        <p class="text-muted small mb-0">Réf: @(item.Product.SKU ?? "N/A")</p>
+                                        <div class="d-md-none mt-2">
+                                            <span class="fw-bold text-primary">@item.Subtotal.ToString("C")</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-12 mt-3 mt-md-0">
+                                        <form asp-controller="Cart" asp-action="UpdateQuantity" method="post" class="d-flex align-items-center justify-content-center bg-light rounded-pill p-1 mx-auto mx-md-0" style="width: fit-content;">
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <button type="submit" name="quantity" value="@(item.Quantity - 1)" class="btn btn-sm btn-link text-dark p-0 px-2" @(item.Quantity <= 1 ? "disabled" : "")>
+                                                <i class="bi bi-dash-circle"></i>
+                                            </button>
+                                            <span class="fw-bold mx-3" style="min-width: 20px; text-align: center;">@item.Quantity</span>
+                                            <button type="submit" name="quantity" value="@(item.Quantity + 1)" class="btn btn-sm btn-link text-dark p-0 px-2">
+                                                <i class="bi bi-plus-circle"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="col-md-2 d-none d-md-block text-end">
+                                        <span class="fw-bold fs-5">@item.Subtotal.ToString("C")</span>
+                                        <div class="text-muted small">@item.UnitPrice.ToString("C") / u</div>
+                                    </div>
+                                    <div class="col-md-1 col-12 text-end mt-2 mt-md-0">
+                                        <form asp-controller="Cart" asp-action="RemoveFromCart" method="post">
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <button type="submit" class="btn btn-link text-danger p-0 delete-btn" title="Supprimer">
+                                                <i class="bi bi-trash fs-5"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer bg-white py-3 border-0">
+                        <a asp-controller="Home" asp-action="Products" class="text-decoration-none text-primary fw-600">
+                            <i class="bi bi-arrow-left me-2"></i>Continuer mes achats
+                        </a>
+                    </div>
+                </div>
+            </div>
 
-<a href="/">Back to Home</a>
+            <!-- Summary Column -->
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 100px; z-index: 10;">
+                    <div class="card border-0 shadow-lg rounded-4 overflow-hidden glass">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-4">Résumé de la commande</h5>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Sous-total HT</span>
+                                <span class="fw-bold">@Model.TotalAmount.ToString("C")</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">TVA (20%)</span>
+                                <span class="fw-bold text-success">+@((Model.TotalAmount * 0.20m).ToString("C"))</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-4">
+                                <span class="text-muted">Frais de livraison</span>
+                                <span class="text-success fw-bold">Gratuit</span>
+                            </div>
+                            
+                            <hr class="my-4">
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <span class="fs-5 fw-bold">Total TTC</span>
+                                <span class="fs-4 fw-bold text-primary">@Model.TotalAmountWithVat.ToString("C")</span>
+                            </div>
+
+                            <a asp-controller="Cart" asp-action="Checkout" class="btn btn-primary btn-lg w-100 py-3 mb-3 shadow">
+                                Passer à la caisse <i class="bi bi-arrow-right ms-2"></i>
+                            </a>
+                            
+                            <div class="mt-4">
+                                <h6 class="fw-bold mb-3 small">Moyens de paiement acceptés</h6>
+                                <div class="d-flex gap-3 text-muted fs-4">
+                                    <i class="bi bi-credit-card"></i>
+                                    <i class="bi bi-paypal"></i>
+                                    <i class="bi bi-apple"></i>
+                                    <i class="bi bi-google"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-white rounded-4 border shadow-sm">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-shield-check text-success fs-3"></i>
+                            <div>
+                                <h6 class="mb-0 fw-bold">Garantie Livraison</h6>
+                                <p class="small text-muted mb-0">Votre commande est sécurisée et assurée.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Optional: AJAX update would be smoother, but standard forms work for now
+        // adding a small animation on remove
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                if(!confirm('Voulez-vous vraiment retirer cet article ?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+}

@@ -30,36 +30,47 @@ class ECommerceUI {
 
     async addToCartWithAnimation(button) {
         const productId = button.dataset.productId;
-        const productCard = button.closest('.product-card');
-        const productName = button.dataset.productName || 'Product';
-
-        // Save original button state
-        const originalHTML = button.innerHTML;
-        const originalText = button.textContent;
+        const productName = button.dataset.productName || 'Produit';
 
         // Show loading state
-        button.innerHTML = '<span class="loading-spinner"></span>';
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<span class="loading-spinner" style="width:16px; height:16px; border-width:2px;"></span>';
         button.disabled = true;
 
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 800));
+            // Real API call to CartController
+            const formData = new FormData();
+            formData.append('productId', productId);
+            formData.append('quantity', 1);
 
-            // Show success animation
-            this.showProductFlyAnimation(productCard);
+            const response = await fetch('/Cart/AddToCart', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
 
-            // Restore button
-            button.innerHTML = originalHTML;
-            button.disabled = false;
+            if (response.ok) {
+                // Show success animation if we have product card
+                const productCard = button.closest('.product-card');
+                if (productCard) {
+                    this.showProductFlyAnimation(productCard);
+                }
 
-            // Update cart badge
-            this.incrementCartBadge();
+                // Update cart badge from server
+                await this.refreshCartBadge();
 
-            // Show notification
-            this.showNotification(`${productName} added to cart!`, 'success');
-
+                // Show notification
+                this.showNotification(`${productName} ajouté au panier !`, 'success');
+            } else {
+                throw new Error('Erreur');
+            }
         } catch (error) {
-            this.showNotification('Failed to add to cart', 'error');
+            console.error('Error adding to cart:', error);
+            this.showNotification('Échec de l\'ajout au panier', 'error');
+        } finally {
+            // Restore button
             button.innerHTML = originalHTML;
             button.disabled = false;
         }
@@ -331,11 +342,30 @@ class ECommerceUI {
         });
     }
 
+    async refreshCartBadge() {
+        try {
+            const response = await fetch('/Cart/GetCartCount');
+            if (response.ok) {
+                const data = await response.json();
+                const badge = document.querySelector('.cart-badge');
+                if (badge) {
+                    badge.textContent = data.count;
+                    if (data.count > 0) {
+                        badge.style.display = 'flex';
+                        badge.classList.add('pulse-animation');
+                        setTimeout(() => badge.classList.remove('pulse-animation'), 300);
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error refreshing cart badge:', error);
+        }
+    }
+
     updateCartBadge() {
-        // In real app, fetch from API
-        const count = 0; // Default
-        const badge = document.querySelector('.cart-badge');
-        if (badge) badge.textContent = count;
+        this.refreshCartBadge();
     }
 }
 

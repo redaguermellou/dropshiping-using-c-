@@ -1,4 +1,4 @@
-using ecom.Data;
+﻿using ecom.Data;
 using ecom.Models;
 using ecom.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -307,6 +307,39 @@ namespace ecom.Controllers
                     ExceptionType = ex.GetType().Name,
                     Timestamp = DateTime.UtcNow
                 });
+            }
+        }
+            public async Task<IActionResult> SeedAdmin()
+        {
+            try {
+                var adminEmail = "admin@shopnex.com";
+                var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
+                if (adminUser == null)
+                {
+                    adminUser = new ecom.Models.User
+                    {
+                        Username = "admin",
+                        Email = adminEmail,
+                        PasswordHash = "Admin123!",
+                        FirstName = "Admin",
+                        LastName = "System",
+                        Phone = "0000000000",
+                        Role = "Admin",
+                        IsActive = true,
+                        EmailVerified = true,
+                        CreatedAt = DateTime.UtcNow,
+                        Address = "System",
+                        City = "System",
+                        PostalCode = "00000",
+                        Country = "System"
+                    };
+                    _context.Users.Add(adminUser);
+                    await _context.SaveChangesAsync();
+                    return Content("Admin user created: admin@shopnex.com / Admin123!");
+                }
+                return Content("Admin user already exists.");
+            } catch (Exception ex) {
+                return Content("Error: " + ex.Message);
             }
         }
     }

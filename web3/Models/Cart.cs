@@ -9,9 +9,8 @@ namespace ecom.Models
         [Key]
         public int Id { get; set; }
 
-        [Required]
         [Display(Name = "Client")]
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
 
         [Display(Name = "Code de session")]
         [StringLength(100)]

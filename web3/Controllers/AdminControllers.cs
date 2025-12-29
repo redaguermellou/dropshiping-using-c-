@@ -336,6 +336,132 @@ namespace ecom.Controllers
             return View();
         }
 
+        [HttpGet("analytics")]
+        public IActionResult Analytics()
+        {
+            return View();
+        }
+
+        [HttpGet("api/analytics")]
+        public async Task<IActionResult> GetAnalytics(string period = "7days")
+        {
+            var now = DateTime.UtcNow;
+            DateTime startDate;
+            DateTime previousStartDate;
+
+            switch (period)
+            {
+                case "today":
+                    startDate = now.Date;
+                    previousStartDate = startDate.AddDays(-1);
+                    break;
+                case "30days":
+                    startDate = now.AddDays(-30);
+                    previousStartDate = startDate.AddDays(-30);
+                    break;
+                case "90days":
+                    startDate = now.AddDays(-90);
+                    previousStartDate = startDate.AddDays(-90);
+                    break;
+                default: // 7days
+                    startDate = now.AddDays(-7);
+                    previousStartDate = startDate.AddDays(-7);
+                    break;
+            }
+
+            var revenue = await _context.Orders
+                .Where(o => o.CreatedAt >= startDate)
+                .SumAsync(o => o.TotalAmount);
+
+            var ordersCount = await _context.Orders
+                .CountAsync(o => o.CreatedAt >= startDate);
+
+            var customersCount = await _context.Users
+                .CountAsync(u => u.CreatedAt >= startDate);
+
+            var avgCart = ordersCount > 0 ? revenue / ordersCount : 0;
+
+            var prevRevenue = await _context.Orders
+                .Where(o => o.CreatedAt >= previousStartDate && o.CreatedAt < startDate)
+                .SumAsync(o => o.TotalAmount);
+            
+            var prevOrdersCount = await _context.Orders
+                .CountAsync(o => o.CreatedAt >= previousStartDate && o.CreatedAt < startDate);
+
+            var prevCustomersCount = await _context.Users
+                .CountAsync(u => u.CreatedAt >= previousStartDate && u.CreatedAt < startDate);
+            
+            var prevAvgCart = prevOrdersCount > 0 ? prevRevenue / prevOrdersCount : 0;
+
+            var revenueChange = prevRevenue > 0 ? (double)((revenue - prevRevenue) / prevRevenue * 100) : (revenue > 0 ? 100.0 : 0.0);
+            var ordersChange = prevOrdersCount > 0 ? (double)(ordersCount - prevOrdersCount) / prevOrdersCount * 100 : (ordersCount > 0 ? 100.0 : 0.0);
+            var customersChange = prevCustomersCount > 0 ? (double)(customersCount - prevCustomersCount) / prevCustomersCount * 100 : (customersCount > 0 ? 100.0 : 0.0);
+            var avgCartChange = prevAvgCart > 0 ? (double)((avgCart - prevAvgCart) / prevAvgCart * 100) : (avgCart > 0 ? 100.0 : 0.0);
+
+            var labels = new List<string>();
+            var values = new List<double>();
+
+            for (var date = startDate.Date; date <= now.Date; date = date.AddDays(1))
+            {
+                labels.Add(date.ToString("dd/MM"));
+                var nextDate = date.AddDays(1);
+                var dayRevenue = await _context.Orders
+                    .Where(o => o.CreatedAt >= date && o.CreatedAt < nextDate)
+                    .SumAsync(o => o.TotalAmount);
+                values.Add((double)dayRevenue);
+            }
+
+            var result = new
+            {
+                metrics = new
+                {
+                    revenue = (double)revenue,
+                    orders = ordersCount,
+                    customers = customersCount,
+                    avgCart = (double)avgCart,
+                    revenueChange = revenueChange,
+                    ordersChange = ordersChange,
+                    customersChange = customersChange,
+                    avgCartChange = avgCartChange
+                },
+                revenueData = new
+                {
+                    labels = labels,
+                    values = values
+                },
+                ordersData = new
+                {
+                    labels = new[] { "Livré", "En attente", "Traitement", "Annulé" },
+                    values = new[] { 
+                        await _context.Orders.CountAsync(o => o.Status == "Delivered"),
+                        await _context.Orders.CountAsync(o => o.Status == "Pending"),
+                        await _context.Orders.CountAsync(o => o.Status == "Processing"),
+                        await _context.Orders.CountAsync(o => o.Status == "Cancelled")
+                    }
+                },
+                trafficData = new
+                {
+                    labels = new[] { "Direct", "Recherche", "Social", "Email" },
+                    values = new[] { 40, 30, 20, 10 }
+                },
+                topProducts = await _context.OrderDetails
+                    .Include(od => od.Product)
+                    .GroupBy(od => new { od.ProductId, od.Product.Name })
+                    .Select(g => new
+                    {
+                        id = g.Key.ProductId,
+                        name = g.Key.Name,
+                        sales = g.Sum(od => od.Quantity),
+                        revenue = (double)g.Sum(od => od.UnitPrice * od.Quantity)
+                    })
+                    .OrderByDescending(x => x.sales)
+                    .Take(5)
+                    .ToListAsync()
+            };
+
+            return Ok(result);
+        }
+
         // === API Endpoints ===
 
         [HttpGet("api/stats")]

@@ -102,7 +102,7 @@
 
                     @if (Model.Product.InStock)
                     {
-                        <form asp-controller="Cart" asp-action="Add" method="post" class="row g-3 align-items-center">
+                        <form asp-controller="Cart" asp-action="AddToCart" method="post" class="row g-3 align-items-center">
                             <input type="hidden" name="productId" value="@Model.Product.Id" />
 
                             <div class="col-auto">
